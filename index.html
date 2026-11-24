@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fotos a PDF</title>
+<meta name="theme-color" content="#16171a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: herramienta precisa y tranquila, de uso diario, sin adornos.
+   IDEA: la cama de un escáner — un visor oscuro con esquinas de encuadre.
+   PICTURE: el panel de captura es el visor; las páginas son hojas con sombra.
+   COLOUR and TYPE: aluminio, negro y un rojo LACAC; Geist.
+   LAYOUT: una columna; visor arriba, grupos debajo; editor de hojas en cuadrícula. */
+:root{color-scheme:light dark;--bg:light-dark(#ecedef,#141517);--card:light-dark(#fff,#1e2023);--ink:light-dark(#111214,#ececee);--mute:light-dark(#5d6168,#9a9ea6);--line:light-dark(#d5d7db,#2e3135);--red:#d7261e;--bed:#16171a;--paper:#fff}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Geist,system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1000px;margin:0 auto;padding:20px max(4vw,14px) 60px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+header h1{font-size:28px;line-height:1.05;margin:0;font-weight:600}
+header small{display:block;color:var(--mute);font-size:13px}
+.mark{display:flex;align-items:flex-end;gap:3px;height:28px}.mark i{width:5px;background:var(--ink);border-radius:1px}.mark i:last-child{background:var(--red)}
+.bed{position:relative;background:var(--bed);color:#f2f2f2;border-radius:16px;padding:28px 22px 22px;margin-bottom:22px}
+.bed::before,.bed::after{content:"";position:absolute;width:26px;height:26px;border:3px solid var(--red)}
+.bed::before{top:12px;left:12px;border-right:0;border-bottom:0}.bed::after{bottom:12px;right:12px;border-left:0;border-top:0}
+.bed h2{font-size:22px;margin:0 0 4px;font-weight:600}.bed p{margin:0 0 16px;color:#b9bcc2;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:500 16px Geist,system-ui,sans-serif;cursor:pointer;text-decoration:none}
+.btn:focus-visible,select:focus-visible,input:focus-visible,.ic:focus-visible,.gcard:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.bed .btn:not(.primary){background:#26282c;border-color:#3a3d42;color:#f2f2f2}
+.btn.big{min-height:56px;font-size:17px;flex:1 1 180px}
+.btn.ghost{background:transparent}.btn.danger{color:var(--red)}
+.opts{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid #33363b;font-size:15px}
+.sw{display:inline-flex;align-items:center;gap:8px;cursor:pointer}.sw input{width:20px;height:20px;accent-color:var(--red)}
+select,input[type=text],input[type=search]{min-height:44px;font:16px Geist,system-ui,sans-serif;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:0 12px}
+.bed select{background:#26282c;color:#f2f2f2;border-color:#3a3d42}
+.hint{color:var(--mute);font-size:14px;margin:6px 0 0}.bed .hint{color:#9a9ea6}
+h3{font-size:18px;margin:26px 0 10px;font-weight:600}
+.new{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;gap:8px}
+.filters{display:flex;gap:8px;overflow-x:auto;padding:8px 0 4px}
+.chip{flex:none;min-height:38px;padding:0 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:14px Geist,system-ui,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.glist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:12px}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;text-align:left;color:var(--ink);font:inherit}
+.gcard b{display:block;font-weight:600;font-size:15px;overflow-wrap:anywhere;margin-top:8px;line-height:1.25}
+.gcard span{color:var(--mute);font-size:13px}
+.ph{position:relative;aspect-ratio:3/4;background:var(--paper);border-radius:4px;overflow:hidden;box-shadow:0 1px 2px #0003,4px 4px 0 -1px var(--line)}
+.ph img{position:absolute;inset:0;margin:auto;max-width:100%;max-height:100%;transition:transform .2s}
+.ph.r90 img{max-width:133.33%;max-height:75%}
+.f-gris{filter:grayscale(1)}.f-doc{filter:grayscale(1) contrast(1.9) brightness(1.08)}
+.empty{color:var(--mute);padding:24px;border:2px dashed var(--line);border-radius:12px;text-align:center}
+.top{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;margin-bottom:12px}
+.top input{font-size:20px;font-weight:600;min-height:48px}
+.pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:14px}
+.pg{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px}
+.pg .n{position:absolute;top:6px;left:6px;z-index:1;background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;border-radius:6px;padding:1px 7px}
+.tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:8px}
+.ic{min-height:44px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;display:grid;place-items:center;padding:0}
+.ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.fbtn{width:100%;margin-top:4px;min-height:40px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font:14px Geist,system-ui,sans-serif;cursor:pointer}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:22px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.grid2 label{display:grid;gap:4px;font-size:14px;color:var(--mute)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{min-height:42px;padding:0 14px;border:0;background:var(--card);color:var(--ink);font:14px Geist,system-ui,sans-serif;cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+#status{margin:10px 0 0;font-size:15px;min-height:1.5em}
+.cam{position:fixed;inset:0;background:#000;z-index:30;display:flex;flex-direction:column}
+.cam[hidden]{display:none}
+.cam video{flex:1;width:100%;height:100%;object-fit:contain;background:#000;min-height:0}
+.camtop,.cambar{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:14px max(4vw,14px);color:#fff}
+.camtop{top:0;padding-top:max(14px,env(safe-area-inset-top));background:linear-gradient(#000a,#0000)}
+.cambar{bottom:0;padding-bottom:max(18px,env(safe-area-inset-bottom));background:linear-gradient(#0000,#000b)}
+.camtop .btn{background:#0008;color:#fff;border-color:#fff6}
+#shot{width:76px;height:76px;border-radius:50%;border:5px solid #fff;background:var(--red);cursor:pointer}
+#shot:active{transform:scale(.92)}
+#camLast{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:#222}
+#camLast:not([src]){visibility:hidden}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
+.flash.on{opacity:.8;transition:none}
+.priv{font-size:13px;color:var(--mute);margin-top:30px;text-align:center}
+.veil{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:20;padding:20px}
+.veil[hidden]{display:none}
+.box{background:var(--card);color:var(--ink);border-radius:14px;padding:20px;max-width:380px;width:100%}
+.box p{margin:0 0 16px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:12px;padding:8px 8px 8px 16px;display:flex;gap:12px;align-items:center;z-index:15;max-width:92vw}
+.toast[hidden]{display:none}.toast button{min-height:40px;background:transparent;border:1px solid currentColor;color:inherit;border-radius:8px;padding:0 12px;font:inherit;cursor:pointer}
+@media(max-width:600px){.new{grid-template-columns:minmax(0,1fr)}.pages,.glist{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}header h1{font-size:24px}}
+@media(prefers-reduced-motion:reduce){.ph img{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="mark" aria-hidden="true"><i style="height:30%"></i><i style="height:45%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:100%"></i></div>
+  <div><h1>Fotos a PDF</h1><small>LACAC · toma fotos, agrúpalas y conviértelas en un solo PDF</small></div>
+</header>
+
+<section id="home">
+  <div class="bed">
+    <h2>Captura rápida</h2>
+    <p>Abre la cámara y dispara las veces que quieras, o elige varias fotos de la galería. Se agrupan solas y cada grupo se convierte en un PDF.</p>
+    <div class="row">
+      <button class="btn primary big" id="qCam" type="button">Tomar fotos</button>
+      <label class="btn big"><input type="file" accept="image/*" multiple id="qGal" hidden>Elegir de la galería</label>
+    </div>
+    <div class="opts">
+      <label class="sw"><input type="checkbox" id="auto">Agrupar por tiempo</label>
+      <label class="sw">fotos con menos de
+        <select id="gap"><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hora</option><option value="180">3 horas</option></select>
+        de diferencia van juntas</label>
+    </div>
+    <p class="hint" id="autoHint"></p>
+  </div>
+
+  <h3>Crear un grupo con nombre</h3>
+  <form class="new" id="newForm">
+    <input type="text" id="newName" placeholder="Ej.: Contrato del local, Facturas noviembre" aria-label="Nombre del grupo">
+    <select id="newCat" aria-label="Categoría"></select>
+    <button class="btn" type="submit">Crear grupo</button>
+  </form>
+
+  <h3>Mis grupos</h3>
+  <input type="search" id="q" placeholder="Buscar grupo" aria-label="Buscar grupo" style="width:100%">
+  <div class="filters" id="chips"></div>
+  <div class="glist" id="list"></div>
+</section>
+
+<section id="grp" hidden>
+  <div class="top">
+    <button class="btn ghost" id="back" aria-label="Volver a mis grupos">← Grupos</button>
+    <input type="text" id="gName" aria-label="Nombre del grupo">
+  </div>
+  <div class="row">
+    <select id="gCat" aria-label="Categoría"></select>
+    <button class="btn primary" id="gCam" type="button">Tomar fotos</button>
+    <label class="btn"><input type="file" accept="image/*" multiple id="gGal" hidden>Añadir de la galería</label>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <span style="font-size:14px;color:var(--mute)">Filtro para todas las hojas:</span>
+    <div class="seg" id="allF"><button data-f="color">Color</button><button data-f="gris">Gris</button><button data-f="doc">Documento</button></div>
+  </div>
+  <div class="pages" id="pages"></div>
+
+  <div class="panel">
+    <h3 style="margin-top:0">Crear el PDF</h3>
+    <div class="grid2">
+      <label>Tamaño de hoja<select id="pSize"><option value="A4">A4</option><option value="Carta">Carta</option><option value="Oficio">Oficio (8,5 × 13 in)</option><option value="Ajustar">Ajustar a cada foto</option></select></label>
+      <label>Márgenes<select id="pMar"><option value="sin">Sin margen</option><option value="peq">Pequeño</option><option value="normal">Normal</option></select></label>
+      <label>Peso del archivo<select id="pQ"><option value="alta">Alta calidad (para imprimir)</option><option value="media">Equilibrado</option><option value="liviano">Liviano (para WhatsApp o correo)</option></select></label>
+      <label>Nombre del archivo<input type="text" id="pName"></label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary big" id="make">Crear y guardar PDF</button>
+    </div>
+    <p id="status" role="status"></p>
+    <div class="row" id="outBtns" hidden><button class="btn primary" id="dlBtn">Descargar PDF</button><button class="btn" id="shBtn" hidden>Compartir (WhatsApp, correo…)</button></div>
+  </div>
+
+  <div class="panel">
+    <h3 style="margin-top:0">Organizar</h3>
+    <div class="row">
+      <select id="mergeSel" aria-label="Grupo para unir"></select>
+      <button class="btn" id="merge">Traer sus hojas aquí</button>
+    </div>
+    <p class="hint">Une otro grupo con este; el otro grupo desaparece.</p>
+    <div class="row" style="margin-top:14px"><button class="btn danger" id="delG">Eliminar este grupo</button></div>
+  </div>
+</section>
+
+<p class="priv">Tus fotos se procesan y se guardan solo en este dispositivo. No se envían a ningún servidor.</p>
+<p class="priv" id="note"></p>
+</div>
+
+<div class="cam" id="cam" hidden>
+  <video id="vid" playsinline muted autoplay></video>
+  <div class="flash" id="flash"></div>
+  <div class="camtop"><span id="camN">0 fotos</span><button class="btn" id="camX" type="button">Cancelar</button></div>
+  <div class="cambar"><img id="camLast" alt=""><button id="shot" aria-label="Disparar"></button><button class="btn primary" id="camOk" type="button">Listo</button></div>
+</div>
+<input type="file" accept="image/*" capture="environment" id="camFallback" hidden>
+<div class="veil" id="busy" hidden><div class="box"><p id="busyT">Procesando…</p></div></div>
+<div class="veil" id="ask" hidden><div class="box"><p id="askT"></p><div class="row"><button class="btn primary" id="askOk">Sí</button><button class="btn" id="askNo">Cancelar</button></div></div></div>
+<div class="toast" id="toast" hidden><span id="toastT"></span><button id="undo">Deshacer</button></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const CATS=['Trabajo','Documentos','Facturas y recibos','Escuela','Personal','Otro'];
+const FL={color:'Color',gris:'Gris',doc:'Documento'};
+const NEXTF={color:'gris',gris:'doc',doc:'color'};
+const SIZES={A4:[595.28,841.89],Carta:[612,792],Oficio:[612,936]};
+const MAR={sin:0,peq:18,normal:42};
+const QUAL={alta:[2400,.88],media:[1700,.75],liviano:[1150,.58]};
+const ICON={
+ rot:'<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
+ left:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+ right:'<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
+ del:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>'};
+let lastPdf=null,groups=[],cur=null,cat='Todas',query='',db=null,dl=null,pendingDel=null,toastTimer=0;
+let settings={auto:true,gap:15};
+const imgs=new Map();
+
+if(typeof window.claude!=='undefined'&&window.claude.use){window.claude.use('downloads').then(d=>{dl=d}).catch(()=>{dl=null})}
+
+/* ---------- almacenamiento local ---------- */
+function openDB(){return new Promise((res,rej)=>{try{const r=indexedDB.open('lacac-fotospdf',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('groups',{keyPath:'id'});d.createObjectStore('imgs')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+function req(store,mode,fn){if(!db)return Promise.resolve(null);return new Promise(res=>{try{const t=db.transaction(store,mode);const r=fn(t.objectStore(store));t.oncomplete=()=>res(r?r.result:null);t.onerror=()=>res(null);t.onabort=()=>res(null)}catch(e){res(null)}})}
+const saveGroup=g=>req('groups','readwrite',s=>s.put(JSON.parse(JSON.stringify(g))));
+const dropGroup=id=>req('groups','readwrite',s=>s.delete(id));
+const saveImg=(id,v)=>req('imgs','readwrite',s=>s.put(v,id));
+const dropImg=id=>req('imgs','readwrite',s=>s.delete(id));
+function saveSet(){try{localStorage.setItem('fotospdf-set',JSON.stringify(settings))}catch(e){}}
+
+async function boot(){
+ try{const s=JSON.parse(localStorage.getItem('fotospdf-set')||'null');if(s)Object.assign(settings,s)}catch(e){}
+ try{db=await openDB()}catch(e){db=null}
+ if(!db){$('#note').textContent='Este navegador no permite guardar: los grupos se perderán al cerrar la página.'}
+ else{
+  groups=(await req('groups','readonly',s=>s.getAll()))||[];
+  for(const g of groups){for(const p of g.pages){const v=await req('imgs','readonly',s=>s.get(p.id));if(v)imgs.set(p.id,v)}g.pages=g.pages.filter(p=>imgs.has(p.id))}
+ }
+ $('#auto').checked=settings.auto;$('#gap').value=String(settings.gap);autoHint();render();
+}
+
+/* ---------- fotos ---------- */
+function loadImg(blob){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const i=new Image();i.onload=()=>{res(i);setTimeout(()=>URL.revokeObjectURL(u),0)};i.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('img'))};i.src=u})}
+const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+async function ingest(file){
+ const im=await loadImg(file);let w=im.naturalWidth,h=im.naturalHeight;const k=Math.min(1,2400/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+ const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);
+ const blob=await toBlob(c,.9);const kt=320/Math.max(w,h);const t=document.createElement('canvas');t.width=Math.round(w*kt);t.height=Math.round(h*kt);t.getContext('2d').drawImage(c,0,0,t.width,t.height);
+ return {blob,thumb:t.toDataURL('image/jpeg',.75)};
+}
+function newGroup(name,c,auto){const g={id:uid(),name,cat:c,auto:!!auto,created:Date.now(),updated:Date.now(),lastShot:0,pages:[],size:'A4',margin:'peq',quality:'media'};groups.push(g);return g}
+const fmt=t=>new Date(t).toLocaleString('es-EC',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+const autoName=t=>'Lote '+fmt(t);
+
+async function addFiles(list,target){
+ const files=[...list].filter(f=>!f.type||f.type.startsWith('image/'));
+ if(!files.length)return;
+ files.sort((a,b)=>(a.lastModified||0)-(b.lastModified||0));
+ const gapMs=settings.gap*60000,touched=new Set();let g=target||null,fails=0;
+ if(!target&&!settings.auto)g=newGroup('Fotos '+fmt(Date.now()),'Otro',false);
+ busy(true,'Preparando '+files.length+' foto(s)…');
+ for(let i=0;i<files.length;i++){
+  const f=files[i],t=f.lastModified||Date.now();
+  if(!target&&settings.auto){
+   if(!g){const r=groups.filter(x=>x.auto).sort((a,b)=>b.lastShot-a.lastShot)[0];g=(r&&Math.abs(t-r.lastShot)<=gapMs)?r:newGroup(autoName(t),'Otro',true)}
+   else if(t-g.lastShot>gapMs)g=newGroup(autoName(t),'Otro',true);
+  }
+  g.lastShot=Math.max(g.lastShot||0,t);
+  try{const v=await ingest(f);const id=uid();imgs.set(id,v);await saveImg(id,v);g.pages.push({id,rot:0,filt:'color'});g.updated=Date.now();touched.add(g)}catch(e){fails++}
+  busy(true,'Preparando '+(i+1)+' de '+files.length+'…');
+ }
+ for(const x of touched)await saveGroup(x);
+ groups=groups.filter(x=>x.pages.length||touched.has(x)||x===cur||!x.auto);
+ busy(false);
+ if(fails)toast(fails+' archivo(s) no se pudieron leer.',false);
+ if(!target&&touched.size===1){cur=[...touched][0]}
+ else if(!target&&touched.size>1){toast('Se formaron '+touched.size+' grupos por hora.',false)}
+ render();
+}
+
+/* ---------- vistas ---------- */
+function thumbHTML(p){const v=imgs.get(p.id);if(!v)return '<div class="ph"></div>';const r=((p.rot%360)+360)%360;return '<div class="ph'+(r%180?' r90':'')+'"><img alt="" src="'+esc(v.thumb)+'" class="f-'+esc(p.filt)+'" style="transform:rotate('+r+'deg)"></div>'}
+function render(){
+ $('#home').hidden=!!cur;$('#grp').hidden=!cur;
+ if(cur)renderGroup();else renderHome();
+}
+function renderHome(){
+ $('#chips').innerHTML=['Todas',...CATS].map(c=>'<button class="chip" data-c="'+esc(c)+'" aria-pressed="'+(c===cat)+'">'+esc(c)+'</button>').join('');
+ const q=query.trim().toLowerCase();
+ const list=groups.filter(g=>(cat==='Todas'||g.cat===cat)&&(!q||g.name.toLowerCase().includes(q))).sort((a,b)=>b.updated-a.updated);
+ $('#list').innerHTML=list.length?list.map(g=>'<button class="gcard" data-g="'+esc(g.id)+'">'+(g.pages[0]?thumbHTML(g.pages[0]):'<div class="ph"></div>')+'<b>'+esc(g.name)+'</b><span>'+esc(g.cat)+' · '+g.pages.length+(g.pages.length===1?' hoja':' hojas')+'</span></button>').join(''):'<div class="empty" style="grid-column:1/-1">'+(groups.length?'Ningún grupo coincide.':'Aún no hay grupos. Toma una foto para empezar.')+'</div>';
+}
+function renderGroup(){
+ const g=cur;$('#gName').value=g.name;$('#gCat').value=g.cat;$('#pSize').value=g.size;$('#pMar').value=g.margin;$('#pQ').value=g.quality;
+ if(document.activeElement!==$('#pName'))$('#pName').value=g.fileName||g.name;
+ const all=g.pages.length&&g.pages.every(p=>p.filt===g.pages[0].filt)?g.pages[0].filt:'';
+ document.querySelectorAll('#allF button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.f===all)));
+ $('#pages').innerHTML=g.pages.length?g.pages.map((p,i)=>'<div class="pg"><div style="position:relative"><span class="n">'+(i+1)+'</span>'+thumbHTML(p)+'</div><div class="tools"><button class="ic" data-a="rot" data-i="'+i+'" aria-label="Girar hoja '+(i+1)+'">'+ICON.rot+'</button><button class="ic" data-a="left" data-i="'+i+'" aria-label="Mover antes"'+(i===0?' disabled':'')+'>'+ICON.left+'</button><button class="ic" data-a="right" data-i="'+i+'" aria-label="Mover después"'+(i===g.pages.length-1?' disabled':'')+'>'+ICON.right+'</button><button class="ic" data-a="del" data-i="'+i+'" aria-label="Quitar hoja '+(i+1)+'">'+ICON.del+'</button></div><button class="fbtn" data-a="filt" data-i="'+i+'">Filtro: '+FL[p.filt]+'</button></div>').join(''):'<div class="empty" style="grid-column:1/-1">Este grupo no tiene hojas. Toma una foto o añádelas de la galería.</div>';
+ const others=groups.filter(x=>x!==g);
+ $('#mergeSel').innerHTML=others.length?others.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' ('+x.pages.length+')</option>').join(''):'<option value="">No hay otros grupos</option>';
+ $('#merge').disabled=!others.length;$('#make').disabled=!g.pages.length;
+}
+const touch=()=>{cur.updated=Date.now();saveGroup(cur)};
+
+/* ---------- ayudas de interfaz ---------- */
+function busy(on,t){$('#busy').hidden=!on;if(t)$('#busyT').textContent=t}
+function ask(t,ok){return new Promise(res=>{$('#askT').textContent=t;$('#askOk').textContent=ok||'Sí';$('#ask').hidden=false;$('#askOk').focus();const done=v=>{$('#ask').hidden=true;$('#askOk').onclick=$('#askNo').onclick=null;res(v)};$('#askOk').onclick=()=>done(true);$('#askNo').onclick=()=>done(false)})}
+function toast(t,undo){clearTimeout(toastTimer);$('#toastT').textContent=t;$('#undo').hidden=!undo;$('#toast').hidden=false;toastTimer=setTimeout(endToast,undo?6000:3500)}
+function endToast(){$('#toast').hidden=true;if(pendingDel){dropImg(pendingDel.p.id);imgs.delete(pendingDel.p.id);pendingDel=null}}
+function autoHint(){$('#autoHint').textContent=settings.auto?'Las fotos nuevas se suman al último lote si están dentro del tiempo elegido; si no, empieza un lote nuevo. Luego puedes renombrarlo.':'Cada captura rápida crea un grupo nuevo con todas las fotos elegidas.';$('#gap').disabled=!settings.auto}
+
+/* ---------- PDF ---------- */
+async function renderPage(p,maxD,qq){
+ const im=await loadImg(imgs.get(p.id).blob);let w=im.naturalWidth,h=im.naturalHeight;const k=Math.min(1,maxD/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);
+ const r=((p.rot%360)+360)%360,sw=r%180?h:w,sh=r%180?w:h;
+ const c=document.createElement('canvas');c.width=sw;c.height=sh;const x=c.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,sw,sh);x.translate(sw/2,sh/2);x.rotate(r*Math.PI/180);x.drawImage(im,-w/2,-h/2,w,h);x.setTransform(1,0,0,1,0,0);
+ if(p.filt!=='color'){
+  const d=x.getImageData(0,0,sw,sh),a=d.data,n=a.length/4,L=new Uint8ClampedArray(n),hist=new Uint32Array(256);
+  for(let i=0,j=0;i<a.length;i+=4,j++){const l=.299*a[i]+.587*a[i+1]+.114*a[i+2];L[j]=l;hist[L[j]]++}
+  let lo=0,hi=255;
+  if(p.filt==='doc'){let s=0;for(let v=0;v<256;v++){s+=hist[v];if(s>=n*.02){lo=v;break}}s=0;for(let v=0;v<256;v++){s+=hist[v];if(s>=n*.6){hi=v;break}}if(hi-lo<30)hi=Math.min(255,lo+30)}
+  const span=hi-lo;
+  for(let i=0,j=0;i<a.length;i+=4,j++){let l=L[j];if(p.filt==='doc'){l=(l-lo)/span;l=l<0?0:l>1?1:l;l=255*Math.pow(l,1.6)}a[i]=a[i+1]=a[i+2]=l}
+  x.putImageData(d,0,0);
+ }
+ const b=await toBlob(c,qq);return {bytes:new Uint8Array(await b.arrayBuffer()),w:sw,h:sh};
+}
+function place(im,size,margin){
+ if(size==='Ajustar'){const k=841.89/Math.max(im.w,im.h);const pw=im.w*k,ph=im.h*k;return {pw,ph,x:0,y:0,dw:pw,dh:ph}}
+ let [W,H]=SIZES[size];if(im.w>im.h)[W,H]=[H,W];const m=MAR[margin];const s=Math.min((W-2*m)/im.w,(H-2*m)/im.h);const dw=im.w*s,dh=im.h*s;
+ return {pw:W,ph:H,x:(W-dw)/2,y:(H-dh)/2,dw,dh};
+}
+function buildPdf(pages){
+ const enc=new TextEncoder(),parts=[],offs=[];let off=0;
+ const put=v=>{const u=typeof v==='string'?enc.encode(v):v;parts.push(u);off+=u.length};
+ const f=n=>(Math.round(n*100)/100).toString();
+ put('%PDF-1.4\n');put(new Uint8Array([37,226,227,207,211,10]));
+ const obj=(id,body)=>{offs[id]=off;put(id+' 0 obj\n');body();put('\nendobj\n')};
+ const total=2+pages.length*3;
+ obj(1,()=>put('<</Type/Catalog/Pages 2 0 R>>'));
+ obj(2,()=>put('<</Type/Pages/Kids['+pages.map((_,i)=>(3+i*3)+' 0 R').join(' ')+']/Count '+pages.length+'>>'));
+ pages.forEach((p,i)=>{
+  const pid=3+i*3,cid=pid+1,iid=pid+2,L=p.lay;
+  obj(pid,()=>put('<</Type/Page/Parent 2 0 R/MediaBox[0 0 '+f(L.pw)+' '+f(L.ph)+']/Resources<</XObject<</Im0 '+iid+' 0 R>>>>/Contents '+cid+' 0 R>>'));
+  const cs='q '+f(L.dw)+' 0 0 '+f(L.dh)+' '+f(L.x)+' '+f(L.y)+' cm /Im0 Do Q';
+  obj(cid,()=>put('<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream'));
+  obj(iid,()=>{put('<</Type/XObject/Subtype/Image/Width '+p.w+'/Height '+p.h+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+p.bytes.length+'>>\nstream\n');put(p.bytes);put('\nendstream')});
+ });
+ const xref=off;let x='xref\n0 '+(total+1)+'\n0000000000 65535 f \n';
+ for(let i=1;i<=total;i++)x+=String(offs[i]).padStart(10,'0')+' 00000 n \n';
+ put(x+'trailer\n<</Size '+(total+1)+'/Root 1 0 R>>\nstartxref\n'+xref+'\n%%EOF\n');
+ return new Blob(parts,{type:'application/pdf'});
+}
+const kb=n=>n>1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' KB';
+async function makePdf(){
+ const g=cur;if(!g.pages.length)return;const [maxD,qq]=QUAL[g.quality],out=[];
+ $('#status').textContent='';
+ try{
+  for(let i=0;i<g.pages.length;i++){busy(true,'Armando hoja '+(i+1)+' de '+g.pages.length+'…');const im=await renderPage(g.pages[i],maxD,qq);im.lay=place(im,g.size,g.margin);out.push(im)}
+ }catch(e){busy(false);$('#status').textContent='No se pudo procesar una de las fotos.';return}
+ const blob=buildPdf(out);busy(false);
+ const name=(($('#pName').value||g.name).replace(/[\\/:*?"<>|]+/g,'-').replace(/\.pdf$/i,'').trim()||'documento')+'.pdf';
+ const info='PDF listo: '+g.pages.length+(g.pages.length===1?' hoja, ':' hojas, ')+kb(blob.size)+'.';
+ if(!dl){lastPdf={blob,name};$('#status').textContent=info;$('#outBtns').hidden=false;let can=false;try{can=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],name,{type:'application/pdf'})]}))}catch(e){}$('#shBtn').hidden=!can;return}
+ $('#status').textContent=info+' Confirma para guardarlo…';
+ try{await dl.save({filename:name,data:blob});$('#status').textContent='Guardado: '+name+' ('+kb(blob.size)+').'}
+ catch(e){const c=e&&e.code;$('#status').textContent=c==='declined'?'No se guardó. Puedes intentarlo otra vez.':c==='rate_limited'?'Espera un momento y vuelve a intentarlo.':c==='host_unavailable'?'Esta app no puede guardar archivos; abre la página en un navegador.':c==='too_large'?'El archivo es muy grande; elige «Liviano» y vuelve a crearlo.':'No se pudo guardar el PDF en esta vista.'}
+}
+
+/* ---------- cámara en vivo ---------- */
+let stream=null,shots=[],camTarget=null;
+async function openCam(target){
+ camTarget=target;shots=[];$('#camN').textContent='0 fotos';$('#camLast').removeAttribute('src');
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('no');
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false});
+  $('#vid').srcObject=stream;$('#cam').hidden=false;try{await $('#vid').play()}catch(e){}
+ }catch(e){stream=null;$('#camFallback').click()}
+}
+function closeCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vid').srcObject=null;$('#cam').hidden=true}
+async function shoot(){
+ const v=$('#vid');if(!v.videoWidth)return;
+ const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+ const f=$('#flash');f.classList.add('on');requestAnimationFrame(()=>requestAnimationFrame(()=>f.classList.remove('on')));
+ const b=await toBlob(c,.92);if(!b)return;
+ shots.push(new File([b],'foto-'+Date.now()+'.jpg',{type:'image/jpeg',lastModified:Date.now()}));
+ $('#camN').textContent=shots.length+(shots.length===1?' foto':' fotos');
+ const t=document.createElement('canvas');const k=112/Math.max(c.width,c.height);t.width=c.width*k;t.height=c.height*k;t.getContext('2d').drawImage(c,0,0,t.width,t.height);$('#camLast').src=t.toDataURL('image/jpeg',.7);
+}
+$('#qCam').addEventListener('click',()=>openCam(null));
+$('#gCam').addEventListener('click',()=>openCam(cur));
+$('#shot').addEventListener('click',shoot);
+$('#camX').addEventListener('click',()=>{shots=[];closeCam()});
+$('#camOk').addEventListener('click',async()=>{const s=shots;shots=[];closeCam();if(s.length)await addFiles(s,camTarget)});
+$('#camFallback').addEventListener('change',async e=>{const fs=e.target.files;if(fs&&fs.length)await addFiles(fs,camTarget);e.target.value=''});
+document.addEventListener('keydown',e=>{if(!$('#cam').hidden&&(e.key===' '||e.key==='Enter')){e.preventDefault();shoot()}});
+
+/* ---------- eventos ---------- */
+$('#newCat').innerHTML=$('#gCat').innerHTML=CATS.map(c=>'<option>'+esc(c)+'</option>').join('');
+$('#newCat').value='Trabajo';
+const onFile=(el,fn)=>el.addEventListener('change',async()=>{const fs=el.files;if(fs&&fs.length)await fn(fs);el.value=''});
+onFile($('#qGal'),fs=>addFiles(fs,null));
+onFile($('#gGal'),fs=>addFiles(fs,cur));
+$('#auto').addEventListener('change',e=>{settings.auto=e.target.checked;saveSet();autoHint()});
+$('#gap').addEventListener('change',e=>{settings.gap=+e.target.value;saveSet()});
+$('#newForm').addEventListener('submit',e=>{e.preventDefault();const n=$('#newName').value.trim()||'Grupo '+fmt(Date.now());const g=newGroup(n,$('#newCat').value,false);saveGroup(g);$('#newName').value='';cur=g;render()});
+$('#q').addEventListener('input',e=>{query=e.target.value;renderHome()});
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;renderHome()}});
+$('#list').addEventListener('click',e=>{const b=e.target.closest('[data-g]');if(b){cur=groups.find(g=>g.id===b.dataset.g)||null;$('#status').textContent='';$('#outBtns').hidden=true;render();scrollTo(0,0)}});
+$('#back').addEventListener('click',()=>{cur=null;$('#outBtns').hidden=true;render()});
+$('#gName').addEventListener('change',e=>{const v=e.target.value.trim();if(v){cur.name=v;cur.auto=false;touch()}else e.target.value=cur.name});
+$('#gCat').addEventListener('change',e=>{cur.cat=e.target.value;touch()});
+$('#pSize').addEventListener('change',e=>{cur.size=e.target.value;touch()});
+$('#pMar').addEventListener('change',e=>{cur.margin=e.target.value;touch()});
+$('#pQ').addEventListener('change',e=>{cur.quality=e.target.value;touch()});
+$('#pName').addEventListener('change',e=>{cur.fileName=e.target.value.trim();touch()});
+$('#allF').addEventListener('click',e=>{const b=e.target.closest('[data-f]');if(!b)return;cur.pages.forEach(p=>p.filt=b.dataset.f);touch();renderGroup()});
+$('#pages').addEventListener('click',e=>{
+ const b=e.target.closest('[data-a]');if(!b||b.disabled)return;const i=+b.dataset.i,P=cur.pages,p=P[i];if(!p)return;
+ switch(b.dataset.a){
+  case'rot':p.rot=(p.rot+90)%360;break;
+  case'filt':p.filt=NEXTF[p.filt];break;
+  case'left':if(i>0)[P[i-1],P[i]]=[P[i],P[i-1]];break;
+  case'right':if(i<P.length-1)[P[i+1],P[i]]=[P[i],P[i+1]];break;
+  case'del':if(pendingDel)endToast();P.splice(i,1);pendingDel={g:cur,p,i};toast('Hoja '+(i+1)+' quitada.',true);break;
+ }
+ touch();renderGroup();
+});
+$('#undo').addEventListener('click',()=>{if(pendingDel){const {g,p,i}=pendingDel;g.pages.splice(Math.min(i,g.pages.length),0,p);g.updated=Date.now();saveGroup(g);pendingDel=null}clearTimeout(toastTimer);$('#toast').hidden=true;render()});
+$('#make').addEventListener('click',()=>{$('#outBtns').hidden=true;makePdf()});
+$('#dlBtn').addEventListener('click',()=>{if(!lastPdf)return;const u=URL.createObjectURL(lastPdf.blob);const a=document.createElement('a');a.href=u;a.download=lastPdf.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);$('#status').textContent='Descargado: '+lastPdf.name+'. Búscalo en la carpeta Descargas.'});
+$('#shBtn').addEventListener('click',async()=>{if(!lastPdf)return;try{await navigator.share({files:[new File([lastPdf.blob],lastPdf.name,{type:'application/pdf'})],title:lastPdf.name})}catch(e){if(e&&e.name!=='AbortError')$('#status').textContent='No se pudo compartir; usa «Descargar PDF».'}});
+$('#merge').addEventListener('click',async()=>{const o=groups.find(x=>x.id===$('#mergeSel').value);if(!o)return;if(!await ask('¿Traer las '+o.pages.length+' hojas de «'+o.name+'» a este grupo? «'+o.name+'» desaparecerá.','Unir'))return;cur.pages.push(...o.pages);groups=groups.filter(x=>x!==o);await dropGroup(o.id);touch();renderGroup();toast('Grupos unidos.',false)});
+$('#delG').addEventListener('click',async()=>{const g=cur;if(!await ask('¿Eliminar «'+g.name+'» y sus '+g.pages.length+' hojas? No se puede deshacer.','Eliminar'))return;if(pendingDel&&pendingDel.g===g)pendingDel=null;for(const p of g.pages){imgs.delete(p.id);dropImg(p.id)}groups=groups.filter(x=>x!==g);await dropGroup(g.id);cur=null;render()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#ask').hidden)$('#askNo').click()});
+boot();
+if('serviceWorker' in navigator&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+}
+</script>
+</body>
+</html>
