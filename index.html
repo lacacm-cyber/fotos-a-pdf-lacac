@@ -92,6 +92,9 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
 #shot:active{transform:scale(.92)}
 #camLast{width:56px;height:56px;object-fit:cover;border-radius:8px;border:2px solid #fff;background:#222}
 #camLast:not([src]){visibility:hidden}
+.cam canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.camhint{position:absolute;left:50%;bottom:calc(120px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000b;color:#fff;font-size:15px;padding:8px 14px;border-radius:99px;white-space:nowrap}
+.camhint.ok{background:var(--red)}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .25s}
 .flash.on{opacity:.8;transition:none}
 .crop{position:fixed;inset:0;z-index:35;background:#000;color:#f3f3f1;display:flex;flex-direction:column}
@@ -106,6 +109,19 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
 .cropbar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;padding:10px 12px max(14px,env(safe-area-inset-bottom))}
 .cropbar .btn:not(.primary){background:#1c1d20;color:#f3f3f1;border-color:#34363b}
 .fbtn+.fbtn{margin-top:4px}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:26px}.hrow h3{margin:0}
+.fold{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.fold svg{width:20px;height:20px;fill:none;stroke:var(--red);stroke-width:2;stroke-linejoin:round}
+.fold span{color:var(--mute);font-weight:400;font-size:14px}
+.gcard{position:relative}.gcard.sel{outline:3px solid var(--red);outline-offset:-1px}
+.gcard .ck{position:absolute;top:14px;right:14px;z-index:2;width:28px;height:28px;border-radius:50%;border:2px solid #fff;background:#0008;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:700}
+.gcard.sel .ck{background:var(--red)}
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:16;background:var(--card);border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px max(4vw,12px) max(12px,env(safe-area-inset-bottom))}
+.selbar[hidden]{display:none}.selbar span{flex:1 1 100%;font-weight:600}
+.selbar select{flex:1 1 140px}
+body.selecting .wrap{padding-bottom:170px}
+.camtop{gap:8px;flex-wrap:wrap}.camtop #autoShot[aria-pressed=false]{opacity:.7}
+.camhint.wait{background:#c98a00}
 .priv{font-size:13px;color:var(--mute);margin-top:30px;text-align:center}
 .veil{position:fixed;inset:0;background:#000a;display:grid;place-items:center;z-index:20;padding:20px}
 .veil[hidden]{display:none}
@@ -147,14 +163,14 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
   <h3>Crear un grupo con nombre</h3>
   <form class="new" id="newForm">
     <input type="text" id="newName" placeholder="Ej.: Contrato del local, Facturas noviembre" aria-label="Nombre del grupo">
-    <select id="newCat" aria-label="Categoría"></select>
+    <select id="newCat" aria-label="Carpeta"></select>
     <button class="btn" type="submit">Crear grupo</button>
   </form>
 
-  <h3>Mis grupos</h3>
+  <div class="hrow"><h3>Mis carpetas</h3><button class="btn ghost" id="selBtn" type="button">Seleccionar</button></div>
   <input type="search" id="q" placeholder="Buscar grupo" aria-label="Buscar grupo" style="width:100%">
   <div class="filters" id="chips"></div>
-  <div class="glist" id="list"></div>
+  <div id="list"></div>
 </section>
 
 <section id="grp" hidden>
@@ -163,7 +179,7 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
     <input type="text" id="gName" aria-label="Nombre del grupo">
   </div>
   <div class="row">
-    <select id="gCat" aria-label="Categoría"></select>
+    <select id="gCat" aria-label="Carpeta"></select>
     <button class="btn primary" id="gCam" type="button"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Tomar fotos</button>
     <label class="btn"><input type="file" accept="image/*" multiple id="gGal" hidden><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 8"/></svg>Añadir de la galería</label>
   </div>
@@ -186,6 +202,7 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
       <button class="btn primary big" id="make">Crear y guardar PDF</button>
     </div>
     <p id="status" role="status"></p>
+    <p class="hint" id="shareHelp" hidden></p>
     <div class="row" id="outBtns" hidden><button class="btn primary" id="dlBtn">Descargar PDF</button><button class="btn" id="shBtn" hidden>Compartir (WhatsApp, correo…)</button></div>
   </div>
 
@@ -206,8 +223,10 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
 
 <div class="cam" id="cam" hidden>
   <video id="vid" playsinline muted autoplay></video>
+  <canvas id="camOv"></canvas>
+  <div class="camhint" id="camHint">Centra la hoja dentro del marco</div>
   <div class="flash" id="flash"></div>
-  <div class="camtop"><span id="camN">0 fotos</span><button class="btn" id="camX" type="button">Cancelar</button></div>
+  <div class="camtop"><span id="camN">0 fotos</span><button class="btn" id="autoShot" type="button" aria-pressed="true" aria-label="Disparo automático">Auto: Sí</button><button class="btn" id="camX" type="button">Cancelar</button></div>
   <div class="cambar"><img id="camLast" alt=""><button id="shot" aria-label="Disparar"></button><button class="btn primary" id="camOk" type="button">Listo</button></div>
 </div>
 <input type="file" accept="image/*" capture="environment" id="camFallback" hidden>
@@ -219,6 +238,8 @@ h3{font-size:18px;margin:26px 0 10px;font-weight:600}
   <div class="cropbar"><button class="btn" id="cropX" type="button">Cancelar</button><button class="btn" id="cropAuto" type="button">Detectar</button><button class="btn" id="cropAll" type="button">Toda la foto</button><button class="btn primary" id="cropOk" type="button">Aplicar</button></div>
 </div>
 <div class="veil" id="busy" hidden><div class="box"><p id="busyT">Procesando…</p></div></div>
+<div class="selbar" id="selBar" hidden><span id="selN">0 seleccionados</span><select id="mvSel" aria-label="Mover a carpeta"></select><button class="btn" id="selMove" type="button">Mover</button><button class="btn danger" id="selDel" type="button">Eliminar</button><button class="btn ghost" id="selX" type="button">Listo</button></div>
+<div class="veil" id="askTx" hidden><div class="box"><p id="askTxT"></p><input type="text" id="askTxIn" style="width:100%;margin-bottom:14px"><div class="row"><button class="btn primary" id="askTxOk">Crear</button><button class="btn" id="askTxNo">Cancelar</button></div></div></div>
 <div class="veil" id="ask" hidden><div class="box"><p id="askT"></p><div class="row"><button class="btn primary" id="askOk">Sí</button><button class="btn" id="askNo">Cancelar</button></div></div></div>
 <div class="toast" id="toast" hidden><span id="toastT"></span><button id="undo">Deshacer</button></div>
 
@@ -228,6 +249,8 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const CATS=['Trabajo','Documentos','Facturas y recibos','Escuela','Personal','Otro'];
+const FOLD='<svg viewBox="0 0 24 24"><path d="M3 6h6l2 2h10v11H3z"/></svg>';
+let selecting=false;const sel=new Set();
 const FL={color:'Color',mejor:'Mejorado',gris:'Gris',doc:'Documento'};
 const NEXTF={color:'mejor',mejor:'gris',gris:'doc',doc:'color'};
 const SIZES={A4:[595.28,841.89],Carta:[612,792],Oficio:[612,936]};
@@ -239,7 +262,7 @@ const ICON={
  right:'<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
  del:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>'};
 let lastPdf=null,groups=[],cur=null,cat='Todas',query='',db=null,dl=null,pendingDel=null,toastTimer=0;
-let settings={auto:true,gap:15,crop:true};
+let settings={auto:true,gap:15,crop:true,autoShot:true,cats:[]};
 const imgs=new Map();
 
 if(typeof window.claude!=='undefined'&&window.claude.use){window.claude.use('downloads').then(d=>{dl=d}).catch(()=>{dl=null})}
@@ -351,11 +374,20 @@ function render(){
  $('#home').hidden=!!cur;$('#grp').hidden=!cur;
  if(cur)renderGroup();else renderHome();
 }
+function allCats(){const s=new Set([...CATS,...(settings.cats||[])]);groups.forEach(g=>s.add(g.cat));return [...s]}
+function fillCats(){const o=allCats().map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')+'<option value="__new">+ Nueva carpeta…</option>';['#newCat','#gCat','#mvSel'].forEach(id=>{const el=$(id),v=el.value;el.innerHTML=o;if(v&&v!=='__new'&&allCats().includes(v))el.value=v})}
+function askText(t){return new Promise(res=>{$('#askTxT').textContent=t;$('#askTxIn').value='';$('#askTx').hidden=false;$('#askTxIn').focus();const done=v=>{$('#askTx').hidden=true;$('#askTxOk').onclick=$('#askTxNo').onclick=null;res(v)};$('#askTxOk').onclick=()=>done($('#askTxIn').value.trim());$('#askTxNo').onclick=()=>done('')})}
+async function pickCat(el,prev,apply){if(el.value!=='__new'){apply(el.value);return}const n=await askText('Nombre de la nueva carpeta');if(n){if(!allCats().includes(n)){settings.cats=[...(settings.cats||[]),n];saveSet()}fillCats();el.value=n;apply(n)}else{el.value=prev}}
+function card(g){return '<button class="gcard'+(sel.has(g.id)?' sel':'')+'" data-g="'+esc(g.id)+'">'+(selecting?'<span class="ck">'+(sel.has(g.id)?'✓':'')+'</span>':'')+(g.pages[0]?thumbHTML(g.pages[0]):'<div class="ph"></div>')+'<b>'+esc(g.name)+'</b><span>'+g.pages.length+(g.pages.length===1?' hoja':' hojas')+' · '+esc(new Date(g.updated).toLocaleDateString('es-EC',{day:'numeric',month:'short'}))+'</span></button>'}
 function renderHome(){
- $('#chips').innerHTML=['Todas',...CATS].map(c=>'<button class="chip" data-c="'+esc(c)+'" aria-pressed="'+(c===cat)+'">'+esc(c)+'</button>').join('');
+ fillCats();
+ $('#chips').innerHTML=['Todas',...allCats()].map(c=>'<button class="chip" data-c="'+esc(c)+'" aria-pressed="'+(c===cat)+'">'+esc(c)+'</button>').join('');
  const q=query.trim().toLowerCase();
  const list=groups.filter(g=>(cat==='Todas'||g.cat===cat)&&(!q||g.name.toLowerCase().includes(q))).sort((a,b)=>b.updated-a.updated);
- $('#list').innerHTML=list.length?list.map(g=>'<button class="gcard" data-g="'+esc(g.id)+'">'+(g.pages[0]?thumbHTML(g.pages[0]):'<div class="ph"></div>')+'<b>'+esc(g.name)+'</b><span>'+esc(g.cat)+' · '+g.pages.length+(g.pages.length===1?' hoja':' hojas')+'</span></button>').join(''):'<div class="empty" style="grid-column:1/-1">'+(groups.length?'Ningún grupo coincide.':'Aún no hay grupos. Toma una foto para empezar.')+'</div>';
+ if(!list.length){$('#list').innerHTML='<div class="empty">'+(groups.length?'Ningún grupo coincide.':'Aún no hay grupos. Toma una foto para empezar.')+'</div>'}
+ else{const by=new Map();list.forEach(g=>{if(!by.has(g.cat))by.set(g.cat,[]);by.get(g.cat).push(g)});
+  $('#list').innerHTML=allCats().filter(c=>by.has(c)).map(c=>'<h4 class="fold">'+FOLD+esc(c)+' <span>'+by.get(c).length+(by.get(c).length===1?' grupo':' grupos')+'</span></h4><div class="glist">'+by.get(c).map(card).join('')+'</div>').join('')}
+ document.body.classList.toggle('selecting',selecting);$('#selBar').hidden=!selecting;$('#selN').textContent=sel.size+(sel.size===1?' seleccionado':' seleccionados');$('#selBtn').textContent=selecting?'Cancelar':'Seleccionar';
 }
 function renderGroup(){
  const g=cur;$('#gName').value=g.name;$('#gCat').value=g.cat;$('#pSize').value=g.size;$('#pMar').value=g.margin;$('#pQ').value=g.quality;$('#pBrand').checked=g.brand!==false;
@@ -441,7 +473,7 @@ async function makePdf(){
  const blob=buildPdf(out,g.brand!==false);busy(false);
  const name=(($('#pName').value||g.name).replace(/[\\/:*?"<>|]+/g,'-').replace(/\.pdf$/i,'').trim()||'documento')+'.pdf';
  const info='PDF listo: '+g.pages.length+(g.pages.length===1?' hoja, ':' hojas, ')+kb(blob.size)+'.';
- if(!dl){lastPdf={blob,name};$('#status').textContent=info;$('#outBtns').hidden=false;let can=false;try{can=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],name,{type:'application/pdf'})]}))}catch(e){}$('#shBtn').hidden=!can;return}
+ if(!dl){lastPdf={blob,name};$('#status').textContent=info;$('#outBtns').hidden=false;let can=false;try{can=!!(navigator.canShare&&navigator.canShare({files:[new File([blob],name,{type:'application/pdf'})]}))}catch(e){}$('#shBtn').hidden=!can;$('#shareHelp').hidden=true;return}
  $('#status').textContent=info+' Confirma para guardarlo…';
  try{await dl.save({filename:name,data:blob});$('#status').textContent='Guardado: '+name+' ('+kb(blob.size)+').'}
  catch(e){const c=e&&e.code;$('#status').textContent=c==='declined'?'No se guardó. Puedes intentarlo otra vez.':c==='rate_limited'?'Espera un momento y vuelve a intentarlo.':c==='host_unavailable'?'Esta app no puede guardar archivos; abre la página en un navegador.':c==='too_large'?'El archivo es muy grande; elige «Liviano» y vuelve a crearlo.':'No se pudo guardar el PDF en esta vista.'}
@@ -477,15 +509,53 @@ $('#cropOk').addEventListener('click',async()=>{
 
 /* ---------- cámara en vivo ---------- */
 let stream=null,shots=[],camTarget=null;
+/* marco en vivo: busca la hoja mientras apuntas */
+let ovTimer=0,ovQ=null,ovMiss=0,prevRaw=null,still=0,armed=true,lastAuto=0;const STILL=6;
+function videoRect(){const v=$('#vid'),ew=v.clientWidth,eh=v.clientHeight,vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return null;const k=Math.min(ew/vw,eh/vh),w=vw*k,h=vh*k;return {x:(ew-w)/2,y:(eh-h)/2,w,h}}
+function drawOverlay(){
+ const cv=$('#camOv'),v=$('#vid'),dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+ if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+ const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);const r=videoRect();if(!r)return;
+ if(ovQ){
+  const pts=ovQ.map(([a,b])=>[r.x+a*r.w,r.y+b*r.h]);
+  x.beginPath();pts.forEach((p,i)=>i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]));x.closePath();
+  x.fillStyle='rgba(224,38,28,.18)';x.fill();x.lineWidth=3;x.strokeStyle='#e0261c';x.stroke();
+  x.fillStyle='#fff';pts.forEach(p=>{x.beginPath();x.arc(p[0],p[1],7,0,7);x.fill()});
+ }else{
+  const m=Math.min(r.w,r.h)*.08,L=Math.min(r.w,r.h)*.12,a=[r.x+m,r.y+m],b=[r.x+r.w-m,r.y+r.h-m];
+  x.lineWidth=4;x.strokeStyle='rgba(255,255,255,.9)';x.lineCap='round';
+  [[a[0],a[1],1,1],[b[0],a[1],-1,1],[b[0],b[1],-1,-1],[a[0],b[1],1,-1]].forEach(([px,py,sx,sy])=>{x.beginPath();x.moveTo(px,py+sy*L);x.lineTo(px,py);x.lineTo(px+sx*L,py);x.stroke()});
+ }
+ const hn=$('#camHint');hn.textContent=ovQ?'Hoja detectada · toca el botón rojo':'Centra la hoja dentro del marco';hn.classList.toggle('ok',!!ovQ);
+}
+function scanLoop(){
+ if($('#cam').hidden||!stream)return;
+ const v=$('#vid');
+ if(v.videoWidth){
+  const k=360/Math.max(v.videoWidth,v.videoHeight),c=document.createElement('canvas');c.width=Math.round(v.videoWidth*k);c.height=Math.round(v.videoHeight*k);c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  let q=null;try{q=detectQuad(c)}catch(e){q=null}
+  if(q){ovMiss=0;const mv=prevRaw?Math.max(...q.map((p,i)=>Math.max(Math.abs(p[0]-prevRaw[i][0]),Math.abs(p[1]-prevRaw[i][1])))):1;prevRaw=q;
+   still=mv<.015?still+1:0;if(mv>.06)armed=true;
+   ovQ=ovQ?ovQ.map((p,i)=>[p[0]+(q[i][0]-p[0])*.5,p[1]+(q[i][1]-p[1])*.5]):q}
+  else if(++ovMiss>2){ovQ=null;prevRaw=null;still=0;armed=true}
+  drawOverlay();
+  if(settings.autoShot!==false&&ovQ){const hn=$('#camHint');
+   if(!armed){hn.textContent='Foto tomada · pasa a la siguiente hoja';hn.className='camhint'}
+   else if(still>=STILL&&Date.now()-lastAuto>2000&&!shooting){lastAuto=Date.now();armed=false;still=0;shoot()}
+   else{hn.textContent='Mantén quieto… '+Math.max(1,Math.ceil((STILL-still)*.18))+' s';hn.className='camhint wait'}}
+ }
+ ovTimer=setTimeout(scanLoop,180);
+}
 async function openCam(target){
  camTarget=target;shots=[];$('#camN').textContent='0 fotos';$('#camLast').removeAttribute('src');
  try{
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('no');
   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:3840},height:{ideal:2160}},audio:false});
   $('#vid').srcObject=stream;$('#cam').hidden=false;try{await $('#vid').play()}catch(e){}
+  ovQ=null;ovMiss=0;prevRaw=null;still=0;armed=true;clearTimeout(ovTimer);setAutoBtn();scanLoop();
  }catch(e){stream=null;$('#camFallback').click()}
 }
-function closeCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vid').srcObject=null;$('#cam').hidden=true}
+function closeCam(){clearTimeout(ovTimer);ovQ=null;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('#vid').srcObject=null;$('#cam').hidden=true}
 let shooting=false;
 async function shoot(){
  const v=$('#vid');if(!v.videoWidth||shooting)return;shooting=true;
@@ -502,14 +572,28 @@ async function shoot(){
 $('#qCam').addEventListener('click',()=>openCam(null));
 $('#gCam').addEventListener('click',()=>openCam(cur));
 $('#shot').addEventListener('click',shoot);
+function setAutoBtn(){const on=settings.autoShot!==false;const b=$('#autoShot');b.textContent='Auto: '+(on?'Sí':'No');b.setAttribute('aria-pressed',String(on))}
+$('#autoShot').addEventListener('click',()=>{settings.autoShot=settings.autoShot===false;saveSet();setAutoBtn();still=0;armed=true});
 $('#camX').addEventListener('click',()=>{shots=[];closeCam()});
 $('#camOk').addEventListener('click',async()=>{const s=shots;shots=[];closeCam();if(s.length)await addFiles(s,camTarget)});
 $('#camFallback').addEventListener('change',async e=>{const fs=e.target.files;if(fs&&fs.length)await addFiles(fs,camTarget);e.target.value=''});
 document.addEventListener('keydown',e=>{if(!$('#cam').hidden&&(e.key===' '||e.key==='Enter')){e.preventDefault();shoot()}});
 
+/* ---------- seleccionar, mover y eliminar ---------- */
+$('#selBtn').addEventListener('click',()=>{selecting=!selecting;sel.clear();renderHome()});
+$('#selX').addEventListener('click',()=>{selecting=false;sel.clear();renderHome()});
+let prevMv='';$('#mvSel').addEventListener('change',e=>pickCat(e.target,prevMv,v=>{prevMv=v}));
+$('#selMove').addEventListener('click',async()=>{const c=$('#mvSel').value;if(!sel.size||!c||c==='__new'){toast('Marca al menos un grupo y elige la carpeta.',false);return}
+ for(const g of groups)if(sel.has(g.id)){g.cat=c;g.updated=Date.now();await saveGroup(g)}toast(sel.size+' grupo(s) movidos a «'+c+'».',false);sel.clear();renderHome()});
+$('#selDel').addEventListener('click',async()=>{if(!sel.size){toast('Marca al menos un grupo.',false);return}
+ const n=groups.filter(g=>sel.has(g.id));const hojas=n.reduce((a,g)=>a+g.pages.length,0);
+ if(!await ask('¿Eliminar '+n.length+(n.length===1?' grupo':' grupos')+' con '+hojas+' hojas? No se puede deshacer.','Eliminar'))return;
+ for(const g of n){for(const p of g.pages){imgs.delete(p.id);dropImg(p.id)}await dropGroup(g.id)}
+ groups=groups.filter(g=>!sel.has(g.id));sel.clear();selecting=false;renderHome();toast('Eliminado.',false)});
+
 /* ---------- eventos ---------- */
-$('#newCat').innerHTML=$('#gCat').innerHTML=CATS.map(c=>'<option>'+esc(c)+'</option>').join('');
-$('#newCat').value='Trabajo';
+fillCats();$('#newCat').value='Trabajo';let prevNew='Trabajo';
+$('#newCat').addEventListener('change',e=>pickCat(e.target,prevNew,v=>{prevNew=v}));
 const onFile=(el,fn)=>el.addEventListener('change',async()=>{const fs=el.files;if(fs&&fs.length)await fn(fs);el.value=''});
 onFile($('#qGal'),fs=>addFiles(fs,null));
 onFile($('#gGal'),fs=>addFiles(fs,cur));
@@ -518,10 +602,10 @@ $('#gap').addEventListener('change',e=>{settings.gap=+e.target.value;saveSet()})
 $('#newForm').addEventListener('submit',e=>{e.preventDefault();const n=$('#newName').value.trim()||'Grupo '+fmt(Date.now());const g=newGroup(n,$('#newCat').value,false);saveGroup(g);$('#newName').value='';cur=g;render()});
 $('#q').addEventListener('input',e=>{query=e.target.value;renderHome()});
 $('#chips').addEventListener('click',e=>{const b=e.target.closest('[data-c]');if(b){cat=b.dataset.c;renderHome()}});
-$('#list').addEventListener('click',e=>{const b=e.target.closest('[data-g]');if(b){cur=groups.find(g=>g.id===b.dataset.g)||null;$('#status').textContent='';$('#outBtns').hidden=true;render();scrollTo(0,0)}});
+$('#list').addEventListener('click',e=>{const b=e.target.closest('[data-g]');if(b&&selecting){const id=b.dataset.g;sel.has(id)?sel.delete(id):sel.add(id);renderHome();return}if(b){cur=groups.find(g=>g.id===b.dataset.g)||null;$('#status').textContent='';$('#outBtns').hidden=true;render();scrollTo(0,0)}});
 $('#back').addEventListener('click',()=>{cur=null;$('#outBtns').hidden=true;render()});
 $('#gName').addEventListener('change',e=>{const v=e.target.value.trim();if(v){cur.name=v;cur.auto=false;touch()}else e.target.value=cur.name});
-$('#gCat').addEventListener('change',e=>{cur.cat=e.target.value;touch()});
+$('#gCat').addEventListener('change',e=>pickCat(e.target,cur.cat,v=>{cur.cat=v;touch()}));
 $('#pSize').addEventListener('change',e=>{cur.size=e.target.value;touch()});
 $('#pMar').addEventListener('change',e=>{cur.margin=e.target.value;touch()});
 $('#pQ').addEventListener('change',e=>{cur.quality=e.target.value;touch()});
@@ -544,7 +628,12 @@ $('#pages').addEventListener('click',e=>{
 $('#undo').addEventListener('click',()=>{if(pendingDel){const {g,p,i}=pendingDel;g.pages.splice(Math.min(i,g.pages.length),0,p);g.updated=Date.now();saveGroup(g);pendingDel=null}clearTimeout(toastTimer);$('#toast').hidden=true;render()});
 $('#make').addEventListener('click',()=>{$('#outBtns').hidden=true;makePdf()});
 $('#dlBtn').addEventListener('click',()=>{if(!lastPdf)return;const u=URL.createObjectURL(lastPdf.blob);const a=document.createElement('a');a.href=u;a.download=lastPdf.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);$('#status').textContent='Descargado: '+lastPdf.name+'. Búscalo en la carpeta Descargas.'});
-$('#shBtn').addEventListener('click',async()=>{if(!lastPdf)return;try{await navigator.share({files:[new File([lastPdf.blob],lastPdf.name,{type:'application/pdf'})],title:lastPdf.name})}catch(e){if(e&&e.name!=='AbortError')$('#status').textContent='No se pudo compartir; usa «Descargar PDF».'}});
+$('#shBtn').addEventListener('click',async()=>{if(!lastPdf)return;
+ const help=()=>{const h=$('#shareHelp');h.hidden=false;h.textContent='Tu navegador no abrió el menú para compartir (Brave a veces lo bloquea). Toca «Descargar PDF» y luego, en WhatsApp: clip 📎 → Documento → elige el PDF desde Descargas. En Chrome el botón Compartir sí funciona.'};
+ let left=false;const mark=()=>{left=true};window.addEventListener('blur',mark,{once:true});document.addEventListener('visibilitychange',mark,{once:true});
+ const t=setTimeout(()=>{if(!left)help()},2500);
+ try{await navigator.share({files:[new File([lastPdf.blob],lastPdf.name,{type:'application/pdf'})],title:lastPdf.name});clearTimeout(t);$('#shareHelp').hidden=true}
+ catch(e){clearTimeout(t);if(!e||e.name!=='AbortError')help()}});
 $('#merge').addEventListener('click',async()=>{const o=groups.find(x=>x.id===$('#mergeSel').value);if(!o)return;if(!await ask('¿Traer las '+o.pages.length+' hojas de «'+o.name+'» a este grupo? «'+o.name+'» desaparecerá.','Unir'))return;cur.pages.push(...o.pages);groups=groups.filter(x=>x!==o);await dropGroup(o.id);touch();renderGroup();toast('Grupos unidos.',false)});
 $('#delG').addEventListener('click',async()=>{const g=cur;if(!await ask('¿Eliminar «'+g.name+'» y sus '+g.pages.length+' hojas? No se puede deshacer.','Eliminar'))return;if(pendingDel&&pendingDel.g===g)pendingDel=null;for(const p of g.pages){imgs.delete(p.id);dropImg(p.id)}groups=groups.filter(x=>x!==g);await dropGroup(g.id);cur=null;render()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#ask').hidden)$('#askNo').click()});
